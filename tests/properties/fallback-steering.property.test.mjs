@@ -48,6 +48,16 @@ function normalizePrompt(text) {
     .replace(/\n{3,}/g, '\n\n')
 }
 
+/**
+ * Escape special regex characters in a string.
+ */
+function escapeRegExp(str) {
+  return str.split('').map(ch => {
+    if ('.*+?^${}()|[]\\'.includes(ch)) return '\\' + ch
+    return ch
+  }).join('')
+}
+
 
 describe('Property 12: 降级行为指引的完整性与一致性', () => {
   it('对于任意 supportsHooks===false 的适配器，fallback steering 包含与 Kiro hooks 一致的 prompt 文本', async () => {
@@ -149,11 +159,21 @@ describe('Property 12: 降级行为指引的完整性与一致性', () => {
             )
           }
 
-          if (kiroEvalPrompt !== expectedEvalPrompt) {
+          // Kiro evaluation hook intentionally rewrites .gapa/gapa-rules.md → .kiro/steering/gapa.md
+          // because Kiro embeds GAPA rules in steering rather than generating a standalone file.
+          // Verify the replacement was applied correctly.
+          const gapaRulesPath = vars.gapaDir + '/gapa-rules.md'
+          const expectedKiroEvalPrompt = normalizePrompt(
+            expectedEvalPrompt.replace(
+              new RegExp(escapeRegExp(gapaRulesPath), 'g'),
+              '.kiro/steering/gapa.md'
+            )
+          )
+          if (kiroEvalPrompt !== expectedKiroEvalPrompt) {
             throw new Error(
-              `Kiro evaluation hook prompt differs from template source.\n` +
+              `Kiro evaluation hook prompt differs from expected (with path rewrite).\n` +
               `Hook: ${kiroEvalPrompt.substring(0, 80)}...\n` +
-              `Template: ${expectedEvalPrompt.substring(0, 80)}...`
+              `Expected: ${expectedKiroEvalPrompt.substring(0, 80)}...`
             )
           }
         },

@@ -54,9 +54,12 @@ function runGapa(cwd, args) {
 function getGeneratedSteeringFiles(projectRoot, ide) {
   const paths = {
     kiro: ['.kiro/steering/gapa.md'],
-    cursor: ['.cursor/rules/gapa-framework.mdc'],
+    cursor: ['.cursor/rules/gapa-rules.mdc'],
     'claude-code': ['CLAUDE.md'],
-    vscode: ['.github/copilot-instructions.md'],
+    vscode: [
+      '.github/copilot-instructions.md',
+      '.github/instructions/gapa-rules.instructions.md',
+    ],
     windsurf: ['.windsurf/rules/gapa-framework.md'],
     trae: ['.trae/rules/gapa-framework.md'],
   }
@@ -168,25 +171,26 @@ describe('Property 14: update 保留语言设置', () => {
 
           // Step 5: Verify generated files use the correct language
           // zh core rules contain "任务评估", en core rules contain "Task Evaluation"
+          // For adapters with split files (e.g. vscode), at least one file must contain the marker
           const generatedFiles = getGeneratedSteeringFiles(tmpDir, ide)
 
-          for (const filePath of generatedFiles) {
-            const content = readFileSync(filePath, 'utf-8')
+          const allContent = generatedFiles
+            .map((filePath) => readFileSync(filePath, 'utf-8'))
+            .join('\n')
 
-            if (lang === 'zh') {
-              if (!content.includes('任务评估')) {
-                throw new Error(
-                  `File ${filePath} should contain zh core rules (任务评估) for lang=zh`
-                )
-              }
+          if (lang === 'zh') {
+            if (!allContent.includes('任务评估')) {
+              throw new Error(
+                `Generated files for ${ide} should contain zh core rules (任务评估) for lang=zh`
+              )
             }
+          }
 
-            if (lang === 'en') {
-              if (!content.includes('Task Evaluation')) {
-                throw new Error(
-                  `File ${filePath} should contain en core rules (Task Evaluation) for lang=en`
-                )
-              }
+          if (lang === 'en') {
+            if (!allContent.includes('Task Evaluation')) {
+              throw new Error(
+                `Generated files for ${ide} should contain en core rules (Task Evaluation) for lang=en`
+              )
             }
           }
         },

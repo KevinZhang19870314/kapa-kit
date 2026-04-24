@@ -1,11 +1,9 @@
 <!-- GAPA:START -->
 <!-- 由 gapa-kit 生成，请勿手动编辑此区域 -->
 
-# GAPA Framework
+# GAPA — Generalized Action and Prompt Adaptation
 
-{{slot:gapaRules}}
-
-## 自动行为指引
+{{slot:overview}}
 
 {{slot:fallbackSteering}}
 

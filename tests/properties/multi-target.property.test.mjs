@@ -28,7 +28,7 @@ const SUPPORTED_IDES = ['kiro', 'cursor', 'claude-code', 'vscode', 'windsurf', '
  */
 const IDE_EXPECTED_FILES = {
   kiro: ['.kiro/steering/gapa.md', '.kiro/steering/gapa-preferences.md'],
-  cursor: ['.cursor/rules/gapa-framework.mdc'],
+  cursor: ['.cursor/rules/gapa-rules.mdc'],
   'claude-code': ['CLAUDE.md'],
   vscode: ['.github/copilot-instructions.md'],
   windsurf: ['.windsurf/rules/gapa-framework.md'],

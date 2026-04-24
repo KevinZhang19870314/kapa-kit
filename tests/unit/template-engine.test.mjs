@@ -258,8 +258,8 @@ describe('loadAdapterTemplate', () => {
     expect(tpl).toContain('GAPA:END')
   })
 
-  it('loads vscode instructions-wrapper template', () => {
-    const tpl = loadAdapterTemplate('vscode', 'instructions-wrapper.tpl')
+  it('loads vscode instructions-overview template', () => {
+    const tpl = loadAdapterTemplate('vscode', 'instructions-overview.tpl')
     expect(tpl).toContain('GAPA:START')
     expect(tpl).toContain('GAPA:END')
   })

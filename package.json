@@ -1,8 +1,22 @@
 {
   "name": "gapa-kit",
-  "version": "0.2.0",
+  "version": "0.5.1",
   "description": "GAPA — Generalized Action and Prompt Adaptation. A cross-IDE self-learning framework for AI Agents. Supports Kiro, Cursor, Claude Code, VS Code (Copilot), Windsurf, and TRAE.",
-  "keywords": ["ai", "agent", "self-learning", "steering", "hooks", "kiro", "cursor", "claude-code", "vscode", "copilot", "windsurf", "trae", "cross-ide"],
+  "keywords": [
+    "ai",
+    "agent",
+    "self-learning",
+    "steering",
+    "hooks",
+    "kiro",
+    "cursor",
+    "claude-code",
+    "vscode",
+    "copilot",
+    "windsurf",
+    "trae",
+    "cross-ide"
+  ],
   "license": "MIT",
   "author": "kevinzhang19870314",
   "repository": {

@@ -17,6 +17,18 @@ import { createAdapter, getSupportedIDEs } from '../../lib/adapters/factory.mjs'
 const SUPPORTED_IDES = getSupportedIDEs()
 
 /**
+ * Find the file containing the full GAPA rules from an adapter's output.
+ *
+ * For adapters that produce multiple files (e.g. vscode v2.0 with split instructions),
+ * the core rules may be in a dedicated file rather than the first one.
+ * Heuristic: prefer a file whose path contains 'gapa-rules', otherwise use the first file.
+ */
+function findCoreRulesFile(files) {
+  const rulesFile = files.find(f => f.relativePath.includes('gapa-rules'))
+  return rulesFile || files[0]
+}
+
+/**
  * Extract the core GAPA rules text from an adapter's generated steering output.
  *
  * Strips IDE-specific wrappers:
@@ -31,13 +43,16 @@ const SUPPORTED_IDES = getSupportedIDEs()
 function extractCoreRules(content) {
   let text = content
 
+  // 0. Normalize line endings
+  text = text.replace(/\r\n/g, '\n')
+
   // 1. Strip GAPA markers
   text = text.replace(/<!-- GAPA:START -->/g, '')
   text = text.replace(/<!-- GAPA:END -->/g, '')
   text = text.replace(/<!-- 由 gapa-kit[^>]*-->/g, '')
 
   // 2. Strip YAML/MDC front-matter (--- ... ---)
-  const fmMatch = text.match(/^\s*---\n[\s\S]*?\n---\n?/)
+  const fmMatch = text.match(/^\s*---\r?\n[\s\S]*?\r?\n---\r?\n?/)
   if (fmMatch) {
     text = text.substring(fmMatch[0].length)
   }
@@ -105,9 +120,13 @@ describe('Property 10: 跨适配器核心内容一致性', () => {
             throw new Error(`${ideB} generateSteering() returned empty array`)
           }
 
-          // Extract core rules from the first (main) steering file of each adapter
-          const coreA = extractCoreRules(filesA[0].content)
-          const coreB = extractCoreRules(filesB[0].content)
+          // Extract core rules from the main steering file of each adapter.
+          // For adapters that split into multiple files (e.g. vscode v2.0),
+          // find the file containing the full GAPA rules (not the overview).
+          const mainFileA = findCoreRulesFile(filesA)
+          const mainFileB = findCoreRulesFile(filesB)
+          const coreA = extractCoreRules(mainFileA.content)
+          const coreB = extractCoreRules(mainFileB.content)
 
           if (!coreA) {
             throw new Error(`${ideA} produced empty core rules after stripping wrapper`)

@@ -2,6 +2,7 @@
  * Unit tests for lib/adapters/cursor-adapter.mjs
  *
  * Validates: Requirements 4.1, 4.2, 4.3
+ * v2.0: split into multiple MDC files
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -13,7 +14,6 @@ import CursorAdapter from '../../lib/adapters/cursor-adapter.mjs'
 
 const adapter = new CursorAdapter()
 
-/** Helper: create a GenerateContext for the given lang */
 function makeCtx(lang = 'zh') {
   return {
     projectRoot: '/tmp/test',
@@ -31,8 +31,8 @@ describe('CursorAdapter metadata', () => {
     expect(adapter.name).toBe('cursor')
   })
 
-  it('formatVersion is "1.0"', () => {
-    expect(adapter.formatVersion).toBe('1.0')
+  it('formatVersion is "2.0"', () => {
+    expect(adapter.formatVersion).toBe('2.0')
   })
 
   it('configDir is ".cursor"', () => {
@@ -47,79 +47,89 @@ describe('CursorAdapter metadata', () => {
 // ─── generateSteering ───
 
 describe('CursorAdapter.generateSteering()', () => {
-  it('returns 1 file', () => {
+  it('returns 3 files', () => {
     const files = adapter.generateSteering(makeCtx())
-    expect(files).toHaveLength(1)
+    expect(files).toHaveLength(3)
   })
 
-  it('generates correct file path (.cursor/rules/gapa-framework.mdc)', () => {
+  it('generates gapa-rules.mdc', () => {
     const files = adapter.generateSteering(makeCtx())
-    expect(files[0].relativePath).toBe('.cursor/rules/gapa-framework.mdc')
+    const f = files.find(f => f.relativePath === '.cursor/rules/gapa-rules.mdc')
+    expect(f).toBeDefined()
   })
 
-  it('file has overwrite writeStrategy', () => {
+  it('generates gapa-context-load.mdc', () => {
     const files = adapter.generateSteering(makeCtx())
-    expect(files[0].writeStrategy).toBe('overwrite')
+    const f = files.find(f => f.relativePath === '.cursor/rules/gapa-context-load.mdc')
+    expect(f).toBeDefined()
   })
 
-  it('contains MDC front-matter with alwaysApply: true', () => {
+  it('generates gapa-evaluation.mdc', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    // MDC front-matter starts with ---
-    expect(content).toMatch(/^---\s*\n/)
-    expect(content).toContain('alwaysApply: true')
+    const f = files.find(f => f.relativePath === '.cursor/rules/gapa-evaluation.mdc')
+    expect(f).toBeDefined()
   })
 
-  it('contains MDC front-matter with description field', () => {
+  it('all files have overwrite writeStrategy', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toMatch(/description:\s*".*"/)
+    for (const file of files) {
+      expect(file.writeStrategy).toBe('overwrite')
+    }
   })
 
-  it('contains GAPA rules content', () => {
+  it('all files contain MDC front-matter with alwaysApply: true', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    // The GAPA rules should be injected — check for the heading
-    expect(content).toContain('# GAPA Framework')
+    for (const file of files) {
+      expect(file.content).toMatch(/^---\s*\r?\n/)
+      expect(file.content).toContain('alwaysApply: true')
+    }
   })
 
-  it('contains fallback steering with context-load prompt', () => {
+  it('all files contain description field', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    // Should contain the context-load prompt content
-    expect(content).toContain('.gapa/memory.md')
-    expect(content).toContain('.gapa/skills/')
+    for (const file of files) {
+      expect(file.content).toMatch(/description:\s*".*"/)
+    }
   })
 
-  it('contains fallback steering with evaluation prompt', () => {
+  it('gapa-rules.mdc contains full GAPA rules', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    // Should contain the evaluation prompt content
-    expect(content).toContain('.gapa/gapa-rules.md')
-    expect(content).toContain('.gapa/preferences.md')
+    const f = files.find(f => f.relativePath.includes('gapa-rules.mdc'))
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/skills/')
+    expect(f.content).toContain('.gapa/preferences.md')
   })
 
-  it('contains section headers for fallback steering', () => {
+  it('gapa-context-load.mdc contains context-load prompt', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toContain('### 任务开始前')
-    expect(content).toContain('### 任务完成后')
+    const f = files.find(f => f.relativePath.includes('gapa-context-load.mdc'))
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/skills/')
+  })
+
+  it('gapa-evaluation.mdc contains evaluation prompt', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-evaluation.mdc'))
+    expect(f.content).toContain('.gapa/gapa-rules.md')
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/preferences.md')
   })
 
   it('works with en language', () => {
     const files = adapter.generateSteering(makeCtx('en'))
-    expect(files).toHaveLength(1)
-    const content = files[0].content
-    expect(content).toContain('alwaysApply: true')
-    expect(content).toContain('.gapa/')
+    expect(files).toHaveLength(3)
+    for (const file of files) {
+      expect(file.content).toContain('alwaysApply: true')
+      expect(file.content).toContain('.gapa/')
+    }
   })
 
   it('no unreplaced template placeholders remain', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    // Should not contain any {{...}} placeholders
-    expect(content).not.toMatch(/\{\{\s*gapaDir\s*\}\}/)
-    expect(content).not.toMatch(/\{\{\s*configDir\s*\}\}/)
+    for (const file of files) {
+      expect(file.content).not.toMatch(/\{\{\s*gapaDir\s*\}\}/)
+      expect(file.content).not.toMatch(/\{\{\s*configDir\s*\}\}/)
+    }
   })
 })
 
@@ -131,19 +141,19 @@ describe('CursorAdapter.generateFallbackSteering()', () => {
     const steeringFiles = adapter.generateSteering(ctx)
     const fallbackFiles = adapter.generateFallbackSteering(ctx)
     expect(fallbackFiles).toHaveLength(steeringFiles.length)
-    expect(fallbackFiles[0].relativePath).toBe(steeringFiles[0].relativePath)
-    expect(fallbackFiles[0].content).toBe(steeringFiles[0].content)
+    for (let i = 0; i < steeringFiles.length; i++) {
+      expect(fallbackFiles[i].relativePath).toBe(steeringFiles[i].relativePath)
+      expect(fallbackFiles[i].content).toBe(steeringFiles[i].content)
+    }
   })
 
   it('fallback contains context-load and evaluation prompts', () => {
     const files = adapter.generateFallbackSteering(makeCtx())
-    const content = files[0].content
-    // Context-load prompt references
-    expect(content).toContain('memory.md')
-    expect(content).toContain('skills/')
-    // Evaluation prompt references
-    expect(content).toContain('gapa-rules.md')
-    expect(content).toContain('preferences.md')
+    const allContent = files.map(f => f.content).join('\n')
+    expect(allContent).toContain('memory.md')
+    expect(allContent).toContain('skills/')
+    expect(allContent).toContain('gapa-rules.md')
+    expect(allContent).toContain('preferences.md')
   })
 })
 
@@ -190,10 +200,17 @@ describe('CursorAdapter.getInstalledFiles()', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns expected file list', () => {
+  it('returns 3 files in the list', () => {
     const files = adapter.getInstalledFiles(tmpDir)
-    const paths = files.map((f) => f.relativePath)
-    expect(paths).toContain('.cursor/rules/gapa-framework.mdc')
+    expect(files).toHaveLength(3)
+  })
+
+  it('includes all expected file paths', () => {
+    const files = adapter.getInstalledFiles(tmpDir)
+    const paths = files.map(f => f.relativePath)
+    expect(paths).toContain('.cursor/rules/gapa-rules.mdc')
+    expect(paths).toContain('.cursor/rules/gapa-context-load.mdc')
+    expect(paths).toContain('.cursor/rules/gapa-evaluation.mdc')
   })
 
   it('each file has exists and label properties', () => {

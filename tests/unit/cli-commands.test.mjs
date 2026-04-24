@@ -134,7 +134,7 @@ describe('CLI — init command', () => {
     // Kiro files
     expect(existsSync(resolve(tmpDir, '.kiro/steering/gapa.md'))).toBe(true)
     // Cursor files
-    expect(existsSync(resolve(tmpDir, '.cursor/rules/gapa-framework.mdc'))).toBe(true)
+    expect(existsSync(resolve(tmpDir, '.cursor/rules/gapa-rules.mdc'))).toBe(true)
 
     // Shared files only once
     expect(existsSync(resolve(tmpDir, '.gapa/memory.md'))).toBe(true)

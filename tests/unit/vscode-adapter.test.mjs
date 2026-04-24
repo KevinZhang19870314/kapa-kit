@@ -2,6 +2,7 @@
  * Unit tests for lib/adapters/vscode-adapter.mjs
  *
  * Validates: Requirements 6.1, 6.2, 6.3, 6.4
+ * v3.1: split instructions + simplified Stop hook, no custom agent
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -14,7 +15,6 @@ import VSCodeAdapter from '../../lib/adapters/vscode-adapter.mjs'
 
 const adapter = new VSCodeAdapter()
 
-/** Helper: create a GenerateContext for the given lang */
 function makeCtx(lang = 'zh') {
   return {
     projectRoot: '/tmp/test',
@@ -32,8 +32,8 @@ describe('VSCodeAdapter metadata', () => {
     expect(adapter.name).toBe('vscode')
   })
 
-  it('formatVersion is "1.0"', () => {
-    expect(adapter.formatVersion).toBe('1.0')
+  it('formatVersion is "3.1"', () => {
+    expect(adapter.formatVersion).toBe('3.1')
   })
 
   it('configDir is ".github"', () => {
@@ -48,80 +48,158 @@ describe('VSCodeAdapter metadata', () => {
 // ─── generateSteering ───
 
 describe('VSCodeAdapter.generateSteering()', () => {
-  it('returns 1 file', () => {
+  it('returns 5 files (4 instructions + 1 hook)', () => {
     const files = adapter.generateSteering(makeCtx())
-    expect(files).toHaveLength(1)
+    expect(files).toHaveLength(5)
   })
 
-  it('generates correct file path (.github/copilot-instructions.md)', () => {
+  it('generates copilot-instructions.md as first file', () => {
     const files = adapter.generateSteering(makeCtx())
     expect(files[0].relativePath).toBe('.github/copilot-instructions.md')
   })
 
-  it('file has append-with-markers writeStrategy', () => {
+  it('generates gapa-rules.instructions.md', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
+    expect(f).toBeDefined()
+  })
+
+  it('generates gapa-context-load.instructions.md', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-context-load.instructions.md'))
+    expect(f).toBeDefined()
+  })
+
+  it('generates gapa-evaluation.instructions.md', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-evaluation.instructions.md'))
+    expect(f).toBeDefined()
+  })
+
+  it('generates gapa-stop.json hook file', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
+    expect(f).toBeDefined()
+    expect(f.writeStrategy).toBe('overwrite')
+  })
+
+  it('copilot-instructions.md has append-with-markers writeStrategy', () => {
     const files = adapter.generateSteering(makeCtx())
     expect(files[0].writeStrategy).toBe('append-with-markers')
   })
 
-  it('content does NOT contain GAPA markers (fs-helpers adds them)', () => {
+  it('instruction files have overwrite writeStrategy', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).not.toContain(GAPA_START_MARKER)
-    expect(content).not.toContain(GAPA_END_MARKER)
+    const instrFiles = files.filter(f => f.relativePath.includes('/instructions/'))
+    for (const file of instrFiles) {
+      expect(file.writeStrategy).toBe('overwrite')
+    }
   })
 
-  it('contains GAPA Framework heading', () => {
+  it('copilot-instructions.md does NOT contain GAPA markers', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toContain('# GAPA Framework')
+    expect(files[0].content).not.toContain(GAPA_START_MARKER)
+    expect(files[0].content).not.toContain(GAPA_END_MARKER)
   })
 
-  it('contains GAPA rules content', () => {
+  it('copilot-instructions.md contains mandatory language', () => {
     const files = adapter.generateSteering(makeCtx())
     const content = files[0].content
+    expect(content).toContain('GAPA')
     expect(content).toContain('.gapa/')
   })
 
-  it('contains fallback steering with context-load prompt', () => {
+  it('copilot-instructions.md contains fallback steering', () => {
     const files = adapter.generateSteering(makeCtx())
     const content = files[0].content
     expect(content).toContain('.gapa/memory.md')
-    expect(content).toContain('.gapa/skills/')
-  })
-
-  it('contains fallback steering with evaluation prompt', () => {
-    const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toContain('.gapa/gapa-rules.md')
-    expect(content).toContain('.gapa/preferences.md')
-  })
-
-  it('contains section headers for fallback steering', () => {
-    const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toContain('## 自动行为指引')
     expect(content).toContain('### 任务开始前')
     expect(content).toContain('### 任务完成后')
   })
 
+  it('instruction files contain YAML frontmatter with applyTo', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const instrFiles = files.filter(f => f.relativePath.includes('/instructions/'))
+    for (const file of instrFiles) {
+      expect(file.content).toMatch(/^---\r?\n/)
+      expect(file.content).toContain("applyTo: '**'")
+    }
+  })
+
+  it('instruction files contain name and description', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const instrFiles = files.filter(f => f.relativePath.includes('/instructions/'))
+    for (const file of instrFiles) {
+      expect(file.content).toMatch(/name: '.*'/)
+      expect(file.content).toMatch(/description: '.*'/)
+    }
+  })
+
+  it('gapa-rules instruction contains full rules content', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/skills/')
+    expect(f.content).toContain('.gapa/preferences.md')
+  })
+
+  it('context-load instruction contains context-load prompt', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-context-load.instructions.md'))
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/skills/')
+  })
+
+  it('evaluation instruction contains evaluation prompt', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath.includes('gapa-evaluation.instructions.md'))
+    expect(f.content).toContain('.gapa/gapa-rules.md')
+    expect(f.content).toContain('.gapa/memory.md')
+    expect(f.content).toContain('.gapa/preferences.md')
+  })
+
+  it('hook file is valid JSON with Stop event', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
+    const parsed = JSON.parse(f.content)
+    expect(parsed.hooks).toHaveProperty('Stop')
+    expect(parsed.hooks.Stop).toBeInstanceOf(Array)
+    expect(parsed.hooks.Stop.length).toBeGreaterThan(0)
+    expect(parsed.hooks.Stop[0].type).toBe('command')
+  })
+
+  it('hook file contains gapaDir path', () => {
+    const files = adapter.generateSteering(makeCtx())
+    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
+    expect(f.content).toContain('.gapa/')
+  })
+
   it('works with en language', () => {
     const files = adapter.generateSteering(makeCtx('en'))
-    expect(files).toHaveLength(1)
-    const content = files[0].content
-    expect(content).toContain('.gapa/')
-    expect(content).toContain('# GAPA Framework')
+    expect(files).toHaveLength(5)
+    const rulesFile = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
+    expect(rulesFile.content).toContain("name: 'GAPA Evaluation Rules'")
+    const hookFile = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
+    expect(hookFile.content).toContain('evaluation')
+  })
+
+  it('zh language uses Chinese frontmatter names', () => {
+    const files = adapter.generateSteering(makeCtx('zh'))
+    const f = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
+    expect(f.content).toContain("name: 'GAPA 评估规则'")
   })
 
   it('no unreplaced template placeholders remain', () => {
     const files = adapter.generateSteering(makeCtx())
-    const content = files[0].content
-    expect(content).not.toMatch(/\{\{\s*gapaDir\s*\}\}/)
-    expect(content).not.toMatch(/\{\{\s*configDir\s*\}\}/)
-    expect(content).not.toMatch(/\{\{\s*slot:\s*\w+\s*\}\}/)
+    for (const file of files) {
+      expect(file.content).not.toMatch(/\{\{\s*gapaDir\s*\}\}/)
+      expect(file.content).not.toMatch(/\{\{\s*configDir\s*\}\}/)
+      expect(file.content).not.toMatch(/\{\{\s*slot:\s*\w+\s*\}\}/)
+    }
   })
 })
 
-// ─── GAPA marker integration (append-with-markers) ───
+// ─── GAPA marker integration ───
 
 describe('VSCodeAdapter GAPA marker integration', () => {
   let tmpDir
@@ -134,7 +212,7 @@ describe('VSCodeAdapter GAPA marker integration', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('GAPA markers appear when content is written via writeWithStrategy', () => {
+  it('GAPA markers appear when written via writeWithStrategy', () => {
     const files = adapter.generateSteering(makeCtx())
     const filePath = join(tmpDir, '.github', 'copilot-instructions-new.md')
     writeWithStrategy(filePath, files[0].content, files[0].writeStrategy)
@@ -143,8 +221,8 @@ describe('VSCodeAdapter GAPA marker integration', () => {
     expect(written).toContain(GAPA_END_MARKER)
   })
 
-  it('preserves existing user content when appending with markers', () => {
-    const userContent = '# My Copilot Instructions\n\nCustom instructions for my project.\n'
+  it('preserves existing user content when appending', () => {
+    const userContent = '# My Copilot Instructions\n\nCustom instructions.\n'
     const dir = join(tmpDir, '.github-existing')
     mkdirSync(dir, { recursive: true })
     const filePath = join(dir, 'copilot-instructions.md')
@@ -154,45 +232,34 @@ describe('VSCodeAdapter GAPA marker integration', () => {
     writeWithStrategy(filePath, files[0].content, files[0].writeStrategy)
 
     const written = readFileSync(filePath, 'utf-8')
-    // User content preserved
     expect(written).toContain('# My Copilot Instructions')
-    expect(written).toContain('Custom instructions for my project.')
-    // GAPA content appended with markers
     expect(written).toContain(GAPA_START_MARKER)
     expect(written).toContain(GAPA_END_MARKER)
-    expect(written).toContain('# GAPA Framework')
+    expect(written).toContain('GAPA')
   })
 
-  it('update replaces marker region content, preserving user content', () => {
-    const userBefore = '# My Copilot Instructions\n\nUser content before GAPA.\n'
-    const userAfter = '\n\nUser content after GAPA.\n'
+  it('update replaces marker region, preserving user content', () => {
+    const userBefore = '# My Instructions\n\nBefore GAPA.\n'
+    const userAfter = '\n\nAfter GAPA.\n'
     const dir = join(tmpDir, '.github-update')
     mkdirSync(dir, { recursive: true })
     const filePath = join(dir, 'copilot-instructions.md')
 
-    // Simulate initial install
     const files1 = adapter.generateSteering(makeCtx('zh'))
     writeFileSync(filePath, userBefore, 'utf-8')
     writeWithStrategy(filePath, files1[0].content, files1[0].writeStrategy)
 
-    // Append user content after GAPA markers
     const currentContent = readFileSync(filePath, 'utf-8')
     writeFileSync(filePath, currentContent + userAfter, 'utf-8')
 
-    // Simulate update: replace marker region
     const files2 = adapter.generateSteering(makeCtx('en'))
     writeWithStrategy(filePath, files2[0].content, files2[0].writeStrategy)
 
     const updated = readFileSync(filePath, 'utf-8')
-    // User content before markers preserved
-    expect(updated).toContain('User content before GAPA.')
-    // User content after markers preserved
-    expect(updated).toContain('User content after GAPA.')
-    // GAPA markers still present
+    expect(updated).toContain('Before GAPA.')
+    expect(updated).toContain('After GAPA.')
     expect(updated).toContain(GAPA_START_MARKER)
     expect(updated).toContain(GAPA_END_MARKER)
-    // Content was replaced (en version)
-    expect(updated).toContain('# GAPA Framework')
   })
 })
 
@@ -204,17 +271,10 @@ describe('VSCodeAdapter.generateFallbackSteering()', () => {
     const steeringFiles = adapter.generateSteering(ctx)
     const fallbackFiles = adapter.generateFallbackSteering(ctx)
     expect(fallbackFiles).toHaveLength(steeringFiles.length)
-    expect(fallbackFiles[0].relativePath).toBe(steeringFiles[0].relativePath)
-    expect(fallbackFiles[0].content).toBe(steeringFiles[0].content)
-  })
-
-  it('fallback contains context-load and evaluation prompts', () => {
-    const files = adapter.generateFallbackSteering(makeCtx())
-    const content = files[0].content
-    expect(content).toContain('memory.md')
-    expect(content).toContain('skills/')
-    expect(content).toContain('gapa-rules.md')
-    expect(content).toContain('preferences.md')
+    for (let i = 0; i < steeringFiles.length; i++) {
+      expect(fallbackFiles[i].relativePath).toBe(steeringFiles[i].relativePath)
+      expect(fallbackFiles[i].content).toBe(steeringFiles[i].content)
+    }
   })
 })
 
@@ -231,7 +291,7 @@ describe('VSCodeAdapter.detect()', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns false when neither copilot-instructions.md nor .github/instructions/ exists', () => {
+  it('returns false when no config exists', () => {
     expect(adapter.detect(tmpDir)).toBe(false)
   })
 
@@ -243,8 +303,14 @@ describe('VSCodeAdapter.detect()', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('returns true when .github/instructions/ directory exists', () => {
+  it('returns true when .github/instructions/ exists', () => {
     mkdirSync(join(tmpDir, '.github', 'instructions'), { recursive: true })
+    expect(adapter.detect(tmpDir)).toBe(true)
+    rmSync(join(tmpDir, '.github'), { recursive: true, force: true })
+  })
+
+  it('returns true when .github/hooks/ exists', () => {
+    mkdirSync(join(tmpDir, '.github', 'hooks'), { recursive: true })
     expect(adapter.detect(tmpDir)).toBe(true)
     rmSync(join(tmpDir, '.github'), { recursive: true, force: true })
   })
@@ -263,10 +329,19 @@ describe('VSCodeAdapter.getInstalledFiles()', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns expected file list with .github/copilot-instructions.md', () => {
+  it('returns 5 files in the list', () => {
     const files = adapter.getInstalledFiles(tmpDir)
-    const paths = files.map((f) => f.relativePath)
+    expect(files).toHaveLength(5)
+  })
+
+  it('includes all expected file paths', () => {
+    const files = adapter.getInstalledFiles(tmpDir)
+    const paths = files.map(f => f.relativePath)
     expect(paths).toContain('.github/copilot-instructions.md')
+    expect(paths).toContain('.github/instructions/gapa-rules.instructions.md')
+    expect(paths).toContain('.github/instructions/gapa-context-load.instructions.md')
+    expect(paths).toContain('.github/instructions/gapa-evaluation.instructions.md')
+    expect(paths).toContain('.github/hooks/gapa-stop.json')
   })
 
   it('each file has exists and label properties', () => {
@@ -291,8 +366,18 @@ describe('VSCodeAdapter.getInstalledFiles()', () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'copilot-instructions.md'), '# Test', 'utf-8')
     const files = adapter.getInstalledFiles(tmpDir)
-    const instrFile = files.find((f) => f.relativePath === '.github/copilot-instructions.md')
-    expect(instrFile.exists).toBe(true)
+    const f = files.find(f => f.relativePath === '.github/copilot-instructions.md')
+    expect(f.exists).toBe(true)
     rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('reports instruction files as existing when present', () => {
+    const dir = join(tmpDir, '.github', 'instructions')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'gapa-rules.instructions.md'), '# Test', 'utf-8')
+    const files = adapter.getInstalledFiles(tmpDir)
+    const f = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
+    expect(f.exists).toBe(true)
+    rmSync(join(tmpDir, '.github'), { recursive: true, force: true })
   })
 })
