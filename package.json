@@ -1,0 +1,37 @@
+{
+  "name": "gapa-kit",
+  "version": "0.2.0",
+  "description": "GAPA — Generalized Action and Prompt Adaptation. A cross-IDE self-learning framework for AI Agents. Supports Kiro, Cursor, Claude Code, VS Code (Copilot), Windsurf, and TRAE.",
+  "keywords": ["ai", "agent", "self-learning", "steering", "hooks", "kiro", "cursor", "claude-code", "vscode", "copilot", "windsurf", "trae", "cross-ide"],
+  "license": "MIT",
+  "author": "kevinzhang19870314",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kevinzhang19870314/gapa-kit.git"
+  },
+  "homepage": "https://github.com/kevinzhang19870314/gapa-kit#readme",
+  "bugs": {
+    "url": "https://github.com/kevinzhang19870314/gapa-kit/issues"
+  },
+  "type": "module",
+  "bin": {
+    "gapa": "./bin/gapa.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "templates/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "vitest --run"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "devDependencies": {
+    "fast-check": "^3.0.0",
+    "vitest": "^1.0.0"
+  }
+}

@@ -1,0 +1,45 @@
+---
+inclusion: manual
+---
+
+# GAPA — Generalized Action and Prompt Adaptation
+
+GAPA 是 Agent 的自我学习系统：任务评估 → 工作流提炼 → 偏好适应。由 hook 触发，不需要每次对话都加载。
+
+## 任务评估
+
+**触发：** 实质性任务完成后（代码/bug/功能/配置）。简单问答不触发。
+
+**维度：** 准确性 | 效率 | 代码质量 | 上下文利用 | 沟通
+
+**格式（追加到 `gapa-memory.md`）：**
+
+```markdown
+### GAPA-{序号} | {日期} | {任务简述}
+- **做得好的：** {具体}
+- **可优化的：** {具体}
+- **行动项：** {可执行的改进措施}
+- **提炼 skill：** {有则说明名称，无则写"无"}
+- **偏好更新：** {有则说明内容，无则写"无"}
+- **评分：** {1-5}/5
+```
+
+## 工作流提炼 → Skill
+
+**提炼标准：** 同类任务 2 次以上 / 单次但通用性强 / 用户明确要求
+
+**Skill 文件：** `.kiro/skills/{name}.md`，`inclusion: manual`，控制在 40 行以内。
+
+## 偏好适应
+
+持续观察用户习惯，写入 `gapa-preferences.md`（auto inclusion）。新增 append，同类 rewrite，过时删除，控制 80 行以内。
+
+## 文件更新策略
+
+- **gapa-memory.md：** append，超 20 条归档旧记录为一行摘要
+- **gapa-preferences.md：** rewrite 为主，保持精简
+- **skill 文件：** rewrite 为主，单文件 ≤ 40 行
+
+## 原则
+
+- 评估诚实，行动项具体可执行，skill 提炼克制，偏好基于观察不臆测
