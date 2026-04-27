@@ -32,25 +32,25 @@ describe('VSCodeAdapter metadata', () => {
     expect(adapter.name).toBe('vscode')
   })
 
-  it('formatVersion is "3.1"', () => {
-    expect(adapter.formatVersion).toBe('3.1')
+  it('formatVersion is "4.0"', () => {
+    expect(adapter.formatVersion).toBe('4.0')
   })
 
   it('configDir is ".github"', () => {
     expect(adapter.configDir).toBe('.github')
   })
 
-  it('supportsHooks is false', () => {
-    expect(adapter.supportsHooks).toBe(false)
+  it('supportsHooks is true', () => {
+    expect(adapter.supportsHooks).toBe(true)
   })
 })
 
 // ─── generateSteering ───
 
 describe('VSCodeAdapter.generateSteering()', () => {
-  it('returns 5 files (4 instructions + 1 hook)', () => {
+  it('returns 4 files (4 instructions)', () => {
     const files = adapter.generateSteering(makeCtx())
-    expect(files).toHaveLength(5)
+    expect(files).toHaveLength(4)
   })
 
   it('generates copilot-instructions.md as first file', () => {
@@ -74,13 +74,6 @@ describe('VSCodeAdapter.generateSteering()', () => {
     const files = adapter.generateSteering(makeCtx())
     const f = files.find(f => f.relativePath.includes('gapa-evaluation.instructions.md'))
     expect(f).toBeDefined()
-  })
-
-  it('generates gapa-stop.json hook file', () => {
-    const files = adapter.generateSteering(makeCtx())
-    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
-    expect(f).toBeDefined()
-    expect(f.writeStrategy).toBe('overwrite')
   })
 
   it('copilot-instructions.md has append-with-markers writeStrategy', () => {
@@ -109,12 +102,11 @@ describe('VSCodeAdapter.generateSteering()', () => {
     expect(content).toContain('.gapa/')
   })
 
-  it('copilot-instructions.md contains fallback steering', () => {
+  it('copilot-instructions.md does NOT contain fallback steering content', () => {
     const files = adapter.generateSteering(makeCtx())
     const content = files[0].content
-    expect(content).toContain('.gapa/memory.md')
-    expect(content).toContain('### 任务开始前')
-    expect(content).toContain('### 任务完成后')
+    expect(content).not.toContain('### 任务开始前')
+    expect(content).not.toContain('### 任务完成后')
   })
 
   it('instruction files contain YAML frontmatter with applyTo', () => {
@@ -158,29 +150,11 @@ describe('VSCodeAdapter.generateSteering()', () => {
     expect(f.content).toContain('.gapa/preferences.md')
   })
 
-  it('hook file is valid JSON with Stop event', () => {
-    const files = adapter.generateSteering(makeCtx())
-    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
-    const parsed = JSON.parse(f.content)
-    expect(parsed.hooks).toHaveProperty('Stop')
-    expect(parsed.hooks.Stop).toBeInstanceOf(Array)
-    expect(parsed.hooks.Stop.length).toBeGreaterThan(0)
-    expect(parsed.hooks.Stop[0].type).toBe('command')
-  })
-
-  it('hook file contains gapaDir path', () => {
-    const files = adapter.generateSteering(makeCtx())
-    const f = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
-    expect(f.content).toContain('.gapa/')
-  })
-
   it('works with en language', () => {
     const files = adapter.generateSteering(makeCtx('en'))
-    expect(files).toHaveLength(5)
+    expect(files).toHaveLength(4)
     const rulesFile = files.find(f => f.relativePath.includes('gapa-rules.instructions.md'))
     expect(rulesFile.content).toContain("name: 'GAPA Evaluation Rules'")
-    const hookFile = files.find(f => f.relativePath === '.github/hooks/gapa-stop.json')
-    expect(hookFile.content).toContain('evaluation')
   })
 
   it('zh language uses Chinese frontmatter names', () => {
@@ -263,18 +237,136 @@ describe('VSCodeAdapter GAPA marker integration', () => {
   })
 })
 
+// ─── generateHooks ───
+
+describe('VSCodeAdapter.generateHooks()', () => {
+  it('returns exactly 3 files', () => {
+    const files = adapter.generateHooks(makeCtx())
+    expect(files).toHaveLength(3)
+  })
+
+  it('generates correct file paths', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const paths = files.map((f) => f.relativePath)
+    expect(paths).toContain('.github/hooks/hooks.json')
+    expect(paths).toContain('.github/hooks/gapa-prompt-submit.mjs')
+    expect(paths).toContain('.github/hooks/gapa-stop.mjs')
+  })
+
+  it('all files have overwrite writeStrategy', () => {
+    const files = adapter.generateHooks(makeCtx())
+    for (const file of files) {
+      expect(file.writeStrategy).toBe('overwrite')
+    }
+  })
+
+  // ── hooks.json structure ──
+
+  it('hooks.json is valid JSON', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const hooksFile = files.find((f) => f.relativePath === '.github/hooks/hooks.json')
+    expect(() => JSON.parse(hooksFile.content)).not.toThrow()
+  })
+
+  it('hooks.json has no version field', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const parsed = JSON.parse(
+      files.find((f) => f.relativePath === '.github/hooks/hooks.json').content
+    )
+    expect(parsed).not.toHaveProperty('version')
+  })
+
+  it('hooks.json uses PascalCase event names (UserPromptSubmit and Stop)', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const parsed = JSON.parse(
+      files.find((f) => f.relativePath === '.github/hooks/hooks.json').content
+    )
+    expect(parsed.hooks).toHaveProperty('UserPromptSubmit')
+    expect(parsed.hooks).toHaveProperty('Stop')
+    expect(parsed.hooks.UserPromptSubmit).toBeInstanceOf(Array)
+    expect(parsed.hooks.Stop).toBeInstanceOf(Array)
+    expect(parsed.hooks.UserPromptSubmit.length).toBeGreaterThan(0)
+    expect(parsed.hooks.Stop.length).toBeGreaterThan(0)
+  })
+
+  it('each hook entry has type "command", valid command string, and timeout of 10', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const parsed = JSON.parse(
+      files.find((f) => f.relativePath === '.github/hooks/hooks.json').content
+    )
+    for (const entry of [...parsed.hooks.UserPromptSubmit, ...parsed.hooks.Stop]) {
+      expect(entry.type).toBe('command')
+      expect(typeof entry.command).toBe('string')
+      expect(entry.command).toMatch(/^node \.github\/hooks\/.*\.mjs$/)
+      expect(entry.timeout).toBe(10)
+    }
+  })
+
+  // ── UserPromptSubmit hook script ──
+
+  it('UserPromptSubmit hook script contains context-load prompt content', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const script = files.find((f) =>
+      f.relativePath.includes('gapa-prompt-submit.mjs')
+    )
+    expect(script.content).toContain('.gapa/memory.md')
+    expect(script.content).toContain('systemMessage')
+  })
+
+  // ── Stop hook script ──
+
+  it('Stop hook script contains evaluation prompt content', () => {
+    const files = adapter.generateHooks(makeCtx())
+    const script = files.find((f) =>
+      f.relativePath.includes('gapa-stop.mjs')
+    )
+    expect(script.content).toContain('.gapa/gapa-rules.md')
+    expect(script.content).toContain('stop_hook_active')
+  })
+
+  // ── Language support ──
+
+  it('works with en language - hook scripts contain English content', () => {
+    const files = adapter.generateHooks(makeCtx('en'))
+    expect(files).toHaveLength(3)
+    const promptScript = files.find((f) => f.relativePath.includes('gapa-prompt-submit.mjs'))
+    const stopScript = files.find((f) => f.relativePath.includes('gapa-stop.mjs'))
+    // English templates should not contain Chinese-specific content
+    expect(promptScript.content).toContain('.gapa/memory.md')
+    expect(stopScript.content).toContain('.gapa/gapa-rules.md')
+  })
+
+  it('works with zh language - hook scripts contain Chinese content', () => {
+    const files = adapter.generateHooks(makeCtx('zh'))
+    const promptScript = files.find((f) => f.relativePath.includes('gapa-prompt-submit.mjs'))
+    const stopScript = files.find((f) => f.relativePath.includes('gapa-stop.mjs'))
+    expect(promptScript.content).toContain('.gapa/memory.md')
+    expect(stopScript.content).toContain('.gapa/gapa-rules.md')
+  })
+
+  it('hooks.json is language-independent (same structure for zh and en)', () => {
+    const zhFiles = adapter.generateHooks(makeCtx('zh'))
+    const enFiles = adapter.generateHooks(makeCtx('en'))
+    const zhHooks = zhFiles.find((f) => f.relativePath === '.github/hooks/hooks.json')
+    const enHooks = enFiles.find((f) => f.relativePath === '.github/hooks/hooks.json')
+    expect(zhHooks.content).toBe(enHooks.content)
+  })
+
+  // ── No unreplaced placeholders ──
+
+  it('no unreplaced template placeholders in any output file', () => {
+    const files = adapter.generateHooks(makeCtx())
+    for (const file of files) {
+      expect(file.content).not.toMatch(/\{\{.*?\}\}/)
+    }
+  })
+})
+
 // ─── generateFallbackSteering ───
 
 describe('VSCodeAdapter.generateFallbackSteering()', () => {
-  it('returns same output as generateSteering', () => {
-    const ctx = makeCtx()
-    const steeringFiles = adapter.generateSteering(ctx)
-    const fallbackFiles = adapter.generateFallbackSteering(ctx)
-    expect(fallbackFiles).toHaveLength(steeringFiles.length)
-    for (let i = 0; i < steeringFiles.length; i++) {
-      expect(fallbackFiles[i].relativePath).toBe(steeringFiles[i].relativePath)
-      expect(fallbackFiles[i].content).toBe(steeringFiles[i].content)
-    }
+  it('throws error when called (supports native hooks)', () => {
+    expect(() => adapter.generateFallbackSteering(makeCtx())).toThrow(/supports native hooks/)
   })
 })
 
@@ -329,9 +421,9 @@ describe('VSCodeAdapter.getInstalledFiles()', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns 5 files in the list', () => {
+  it('returns 7 files in the list', () => {
     const files = adapter.getInstalledFiles(tmpDir)
-    expect(files).toHaveLength(5)
+    expect(files).toHaveLength(7)
   })
 
   it('includes all expected file paths', () => {
@@ -341,7 +433,15 @@ describe('VSCodeAdapter.getInstalledFiles()', () => {
     expect(paths).toContain('.github/instructions/gapa-rules.instructions.md')
     expect(paths).toContain('.github/instructions/gapa-context-load.instructions.md')
     expect(paths).toContain('.github/instructions/gapa-evaluation.instructions.md')
-    expect(paths).toContain('.github/hooks/gapa-stop.json')
+    expect(paths).toContain('.github/hooks/hooks.json')
+    expect(paths).toContain('.github/hooks/gapa-prompt-submit.mjs')
+    expect(paths).toContain('.github/hooks/gapa-stop.mjs')
+  })
+
+  it('does NOT include gapa-stop.json', () => {
+    const files = adapter.getInstalledFiles(tmpDir)
+    const paths = files.map(f => f.relativePath)
+    expect(paths).not.toContain('.github/hooks/gapa-stop.json')
   })
 
   it('each file has exists and label properties', () => {

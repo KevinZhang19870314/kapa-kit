@@ -5,6 +5,4 @@
 
 {{slot:overview}}
 
-{{slot:fallbackSteering}}
-
 <!-- GAPA:END -->
