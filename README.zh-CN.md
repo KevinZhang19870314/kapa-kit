@@ -28,6 +28,19 @@ npx gapa-kit init --target cursor --lang en
 npx gapa-kit init --target kiro --target cursor --target claude-code
 ```
 
+### 全局安装（可选）
+
+如果你需要频繁使用 GAPA，可以选择全局安装：
+
+```bash
+npm install -g gapa-kit
+
+# 之后可以直接使用短命令
+gapa init --target kiro
+gapa update
+gapa status
+```
+
 ## 命令
 
 ### `gapa init`
@@ -35,7 +48,7 @@ npx gapa-kit init --target kiro --target cursor --target claude-code
 初始化 GAPA 框架。生成 IDE 特定的 steering/rules 文件和共享的 `.gapa/` 数据目录。
 
 ```bash
-gapa init [--target <ide>] [--lang <zh|en>]
+npx gapa-kit init [--target <ide>] [--lang <zh|en>]
 ```
 
 - `--target` — 目标 IDE，可多次指定。支持：`kiro`、`cursor`、`claude-code`、`vscode`、`windsurf`、`trae`
@@ -47,7 +60,7 @@ gapa init [--target <ide>] [--lang <zh|en>]
 更新框架文件（steering/rules/hooks），保留用户数据（memory.md、preferences.md）。
 
 ```bash
-gapa update [--target <ide>]
+npx gapa-kit update [--target <ide>]
 ```
 
 - 从 `.gaparc.json` 读取已安装的 IDE 列表和语言设置
@@ -59,15 +72,15 @@ gapa update [--target <ide>]
 检查 GAPA 安装状态，统计 Memory 条目数和 Skill 文件数。
 
 ```bash
-gapa status [--target <ide>]
+npx gapa-kit status [--target <ide>]
 ```
 
 ### 其他命令
 
 | 命令 | 说明 |
 |------|------|
-| `gapa version` | 显示版本号 |
-| `gapa help` | 显示帮助信息 |
+| `npx gapa-kit version` | 显示版本号 |
+| `npx gapa-kit help` | 显示帮助信息 |
 
 ## 各 IDE 使用示例
 

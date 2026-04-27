@@ -168,8 +168,9 @@ describe('injectIntoWrapper', () => {
   it('works with actual cursor mdc-wrapper template', () => {
     const wrapper = loadAdapterTemplate('cursor', 'mdc-wrapper.tpl')
     const result = injectIntoWrapper(wrapper, {
+      description: 'GAPA Self-Learning System',
       gapaRules: '# GAPA Rules',
-      fallbackSteering: '### Before task\nLoad context',
+      contextLoadGuidance: '### Before task\nLoad context',
     })
     expect(result).toContain('alwaysApply: true')
     expect(result).toContain('# GAPA Rules')
@@ -303,21 +304,17 @@ describe('end-to-end template pipeline', () => {
     const vars = { gapaDir: '.gapa', configDir: '.cursor', version: '0.2.0' }
     const gapaRules = replacePlaceholders(templates.gapaRules, vars)
     const contextLoad = replacePlaceholders(templates.contextLoadPrompt, vars)
-    const evaluation = replacePlaceholders(templates.evaluationPrompt, vars)
 
     // Verify no unreplaced placeholders remain
     expect(gapaRules).not.toContain('{{gapaDir}}')
     expect(contextLoad).not.toContain('{{gapaDir}}')
-    expect(evaluation).not.toContain('{{gapaDir}}')
 
-    // 3. Build fallback steering from prompts
-    const fallbackSteering = `### 任务开始前\n${contextLoad}\n### 任务完成后\n${evaluation}`
-
-    // 4. Inject into cursor wrapper
+    // 3. Inject into cursor wrapper (new slot names: description, gapaRules, contextLoadGuidance)
     const wrapper = loadAdapterTemplate('cursor', 'mdc-wrapper.tpl')
     const output = injectIntoWrapper(wrapper, {
+      description: 'GAPA 自我学习系统 — 评估规则与行为指引',
       gapaRules,
-      fallbackSteering,
+      contextLoadGuidance: contextLoad,
     })
 
     // Verify final output

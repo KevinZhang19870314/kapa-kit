@@ -1,12 +1,10 @@
 ---
-description: "GAPA — AI Agent 自我学习框架"
+description: "{{slot:description}}"
 alwaysApply: true
 ---
-
-# GAPA Framework
 
 {{slot:gapaRules}}
 
 ## 自动行为指引
 
-{{slot:fallbackSteering}}
+{{slot:contextLoadGuidance}}

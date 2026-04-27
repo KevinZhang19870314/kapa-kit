@@ -28,6 +28,19 @@ npx gapa-kit init --target cursor --lang en
 npx gapa-kit init --target kiro --target cursor --target claude-code
 ```
 
+### Global Install (Optional)
+
+If you use GAPA frequently across multiple projects, you can install it globally:
+
+```bash
+npm install -g gapa-kit
+
+# Then use the shorter command
+gapa init --target kiro
+gapa update
+gapa status
+```
+
 ## Commands
 
 ### `gapa init`
@@ -35,7 +48,7 @@ npx gapa-kit init --target kiro --target cursor --target claude-code
 Initialize the GAPA framework. Generates IDE-specific steering/rules files and the shared `.gapa/` data directory.
 
 ```bash
-gapa init [--target <ide>] [--lang <zh|en>]
+npx gapa-kit init [--target <ide>] [--lang <zh|en>]
 ```
 
 - `--target` — Target IDE, can be specified multiple times. Supported: `kiro`, `cursor`, `claude-code`, `vscode`, `windsurf`, `trae`
@@ -47,7 +60,7 @@ gapa init [--target <ide>] [--lang <zh|en>]
 Update framework files (steering/rules/hooks) while preserving user data (memory.md, preferences.md).
 
 ```bash
-gapa update [--target <ide>]
+npx gapa-kit update [--target <ide>]
 ```
 
 - Reads installed IDE list and language settings from `.gaparc.json`
@@ -59,15 +72,15 @@ gapa update [--target <ide>]
 Check GAPA installation status, count Memory entries and Skill files.
 
 ```bash
-gapa status [--target <ide>]
+npx gapa-kit status [--target <ide>]
 ```
 
 ### Other Commands
 
 | Command | Description |
 |---------|-------------|
-| `gapa version` | Show version number |
-| `gapa help` | Show help information |
+| `npx gapa-kit version` | Show version number |
+| `npx gapa-kit help` | Show help information |
 
 ## IDE Usage Examples
 
